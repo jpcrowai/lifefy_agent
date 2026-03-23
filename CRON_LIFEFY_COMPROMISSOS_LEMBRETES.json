@@ -1,0 +1,47 @@
+{
+  "name": "CRON - LifeFy Lembrete de Compromissos",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] } },
+      "name": "Trigger a cada 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "life_appointments",
+        "filters": {}
+      },
+      "name": "Get Appointments",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wanderingmacaque-chatwoot.cloudfy.live/api/v1/accounts/{{ $json.tenant_id }}/conversations/FIXO/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "content", "value": "=Oi! Só passando pra te lembrar do seu compromisso: {{ $json.titulo }}, marcado para {{ $json.data_hora }}. Bora!" },
+            { "name": "message_type", "value": "outgoing" }
+          ]
+        }
+      },
+      "name": "Send Chatwoot Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [400, 0],
+      "credentials": { "httpHeaderAuth": { "id": "placeholder", "name": "Chatwoot API" } }
+    }
+  ],
+  "connections": {
+    "Trigger a cada 15 min": { "main": [ [ { "node": "Get Appointments", "type": "main", "index": 0 } ] ] },
+    "Get Appointments": { "main": [ [ { "node": "Send Chatwoot Alert", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

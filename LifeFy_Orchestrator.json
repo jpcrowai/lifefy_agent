@@ -1,0 +1,201 @@
+{
+  "name": "LifeFy - Orchestrator Principal",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lifefy-webhook",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook Chatwoot",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "name": "msg", "value": "={{ $json.body.conversation.messages[0].content }}", "type": "string" },
+            { "name": "tenant_id", "value": "={{ $json.body.account.id }}", "type": "string" },
+            { "name": "user_id", "value": "={{ $json.body.conversation.messages[0].sender.phone_number }}", "type": "string" }
+          ]
+        }
+      },
+      "name": "Set Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.msg }}",
+        "options": {
+          "systemMessage": "=## IDENTIDADE: Você é o LifeFy, assistente pessoal do usuário no WhatsApp. Linguagem direta, natural, otimista, sem emojis.\n\nVocê organiza: Finanças, Compromissos, Saúde, Tarefas e Metas.\nNão use markdowns ou textos longos demais.\nSempre confirme ações importantes utilizando os Tools."
+        }
+      },
+      "name": "LifeFy Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [450, 0]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini"
+      },
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Set Context').item.json.user_id }}"
+      },
+      "name": "Postgres Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [550, 200],
+      "credentials": { "postgres": { "id": "placeholder", "name": "postgres_cloudfy" } }
+    },
+    {
+      "parameters": {
+        "name": "LifeFy_Financas",
+        "description": "Acione quando a mensagem for sobre dinheiro, gastos, pagamentos, salário ou saldo.",
+        "workflowId": "ID_TOOL_FINANCAS",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "tipo": "={{ $fromAI('tipo', 'Despesa ou Receita', 'string') }}",
+            "categoria": "={{ $fromAI('categoria', 'Alimentacao, Moradia, etc', 'string') }}",
+            "valor": "={{ $fromAI('valor', 'Apenas numero', 'number') }}",
+            "descricao": "={{ $fromAI('descricao', 'O que foi gasto', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Financas",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "name": "LifeFy_Compromissos",
+        "description": "Acione quando for marcar reuniões, consultas, treinos ou datas futuras.",
+        "workflowId": "ID_TOOL_COMPROMISSOS",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "titulo": "={{ $fromAI('titulo', 'Resumo', 'string') }}",
+            "data_hora": "={{ $fromAI('data_hora', 'Data e hora padrao', 'string') }}",
+            "descricao": "={{ $fromAI('descricao', 'Detalhes do evento', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Compromissos",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [750, 200]
+    },
+    {
+      "parameters": {
+        "name": "LifeFy_Saude",
+        "description": "Acione quando gravar rotinas de agua, peso, academia, sono.",
+        "workflowId": "ID_TOOL_SAUDE",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "tipo_habito": "={{ $fromAI('tipo_habito', 'Agua, Sono, etc', 'string') }}",
+            "valor": "={{ $fromAI('valor', 'Numero', 'string') }}",
+            "unidade": "={{ $fromAI('unidade', 'litros, kg, horas', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Saude",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "name": "LifeFy_Tarefas",
+        "description": "Acione quando criar tarefas e afazeres sem horario rigido.",
+        "workflowId": "ID_TOOL_TAREFAS",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "titulo": "={{ $fromAI('titulo', 'Titulo da tarefa', 'string') }}",
+            "prioridade": "={{ $fromAI('prioridade', 'Alta, Media, Baixa', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Tarefas",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [950, 200]
+    },
+    {
+      "parameters": {
+        "name": "LifeFy_Objetivos",
+        "description": "Acione quando criar metas de viagem, poupança de longo prazo.",
+        "workflowId": "ID_TOOL_OBJETIVOS",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "nome_objetivo": "={{ $fromAI('nome_objetivo', 'Nome', 'string') }}",
+            "valor_meta": "={{ $fromAI('valor_meta', 'Alvo', 'number') }}",
+            "prazo": "={{ $fromAI('prazo', 'Data prevista', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Objetivos",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wanderingmacaque-chatwoot.cloudfy.live/api/v1/accounts/{{ $('Set Context').item.json.tenant_id }}/conversations/FIXO/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "content", "value": "={{ $json.output }}" },
+            { "name": "message_type", "value": "outgoing" }
+          ]
+        }
+      },
+      "name": "Send Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 0],
+      "credentials": { "httpHeaderAuth": { "id": "placeholder", "name": "Chatwoot API" } }
+    }
+  ],
+  "connections": {
+    "Webhook Chatwoot": { "main": [ [ { "node": "Set Context", "type": "main", "index": 0 } ] ] },
+    "Set Context": { "main": [ [ { "node": "LifeFy Agent", "type": "main", "index": 0 } ] ] },
+    "OpenAI Chat Model": { "ai_languageModel": [ [ { "node": "LifeFy Agent", "type": "ai_languageModel", "index": 0 } ] ] },
+    "Postgres Memory": { "ai_memory": [ [ { "node": "LifeFy Agent", "type": "ai_memory", "index": 0 } ] ] },
+    "Tool Financas": { "ai_tool": [ [ { "node": "LifeFy Agent", "type": "ai_tool", "index": 0 } ] ] },
+    "Tool Compromissos": { "ai_tool": [ [ { "node": "LifeFy Agent", "type": "ai_tool", "index": 0 } ] ] },
+    "Tool Saude": { "ai_tool": [ [ { "node": "LifeFy Agent", "type": "ai_tool", "index": 0 } ] ] },
+    "Tool Tarefas": { "ai_tool": [ [ { "node": "LifeFy Agent", "type": "ai_tool", "index": 0 } ] ] },
+    "Tool Objetivos": { "ai_tool": [ [ { "node": "LifeFy Agent", "type": "ai_tool", "index": 0 } ] ] },
+    "LifeFy Agent": { "main": [ [ { "node": "Send Chatwoot", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

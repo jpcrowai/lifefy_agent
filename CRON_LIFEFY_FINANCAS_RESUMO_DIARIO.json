@@ -1,0 +1,66 @@
+{
+  "name": "CRON - LifeFy Resumo Diario",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "days" }] } },
+      "name": "Trigger Diario",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "finances_balances",
+        "filters": {}
+      },
+      "name": "Get Balances",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Gere um insight curto motivacional: Hoje as contas de {{ $json.user_id }} fecharam com saldo {{ $json.saldo }}."
+      },
+      "name": "Gerar Insight",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [400, 0]
+    },
+    {
+      "parameters": { "model": "gpt-4o-mini" },
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wanderingmacaque-chatwoot.cloudfy.live/api/v1/accounts/{{ $json.tenant_id }}/conversations/FIXO/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "content", "value": "={{ $json.output }}" },
+            { "name": "message_type", "value": "outgoing" }
+          ]
+        }
+      },
+      "name": "Send via Chatwoot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [600, 0],
+      "credentials": { "httpHeaderAuth": { "id": "placeholder", "name": "Chatwoot API" } }
+    }
+  ],
+  "connections": {
+    "Trigger Diario": { "main": [ [ { "node": "Get Balances", "type": "main", "index": 0 } ] ] },
+    "Get Balances": { "main": [ [ { "node": "Gerar Insight", "type": "main", "index": 0 } ] ] },
+    "Gerar Insight": { "main": [ [ { "node": "Send via Chatwoot", "type": "main", "index": 0 } ] ] },
+    "OpenAI Model": { "ai_languageModel": [ [ { "node": "Gerar Insight", "type": "ai_languageModel", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

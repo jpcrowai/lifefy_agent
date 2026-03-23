@@ -1,0 +1,51 @@
+{
+  "name": "Tool - LifeFy Compromissos",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "life_appointments",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
+            { "fieldId": "titulo", "fieldValue": "={{ $json.titulo }}" },
+            { "fieldId": "data_hora", "fieldValue": "={{ $json.data_hora }}" },
+            { "fieldId": "descricao", "fieldValue": "={{ $json.descricao }}" },
+            { "fieldId": "status", "fieldValue": "agendado" }
+          ]
+        }
+      },
+      "name": "Insert Appointment",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "name": "response", "value": "O compromisso foi salvo e será lembrado via CRON.", "type": "string" }
+          ]
+        }
+      },
+      "name": "Return Msg",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Appointment", "type": "main", "index": 0 } ] ] },
+    "Insert Appointment": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

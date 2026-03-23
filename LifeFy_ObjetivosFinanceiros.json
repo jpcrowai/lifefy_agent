@@ -1,0 +1,52 @@
+{
+  "name": "Tool - LifeFy Objetivos",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "financial_goals",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
+            { "fieldId": "nome_objetivo", "fieldValue": "={{ $json.nome_objetivo }}" },
+            { "fieldId": "valor_meta", "fieldValue": "={{ $json.valor_meta }}" },
+            { "fieldId": "valor_atual", "fieldValue": 0 },
+            { "fieldId": "prazo", "fieldValue": "={{ $json.prazo }}" },
+            { "fieldId": "status", "fieldValue": "ativo" }
+          ]
+        }
+      },
+      "name": "Insert Goal",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "name": "response", "value": "O seu objetivo financeiro foi criado para que você possa acompanhar o andamento a partir de agora.", "type": "string" }
+          ]
+        }
+      },
+      "name": "Return Msg",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Goal", "type": "main", "index": 0 } ] ] },
+    "Insert Goal": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

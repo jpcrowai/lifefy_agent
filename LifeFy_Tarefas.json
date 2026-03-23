@@ -1,0 +1,50 @@
+{
+  "name": "Tool - LifeFy Tarefas",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "tasks",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
+            { "fieldId": "titulo", "fieldValue": "={{ $json.titulo }}" },
+            { "fieldId": "prioridade", "fieldValue": "={{ $json.prioridade }}" },
+            { "fieldId": "status", "fieldValue": "pendente" }
+          ]
+        }
+      },
+      "name": "Insert Task",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "name": "response", "value": "A tarefa foi gravada e adicionada na sua to-do list.", "type": "string" }
+          ]
+        }
+      },
+      "name": "Return Msg",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Task", "type": "main", "index": 0 } ] ] },
+    "Insert Task": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

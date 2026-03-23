@@ -1,0 +1,47 @@
+{
+  "name": "CRON - LifeFy Habitos de Saude",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours" }] } },
+      "name": "Trigger Hourly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "health_reminders",
+        "filters": {}
+      },
+      "name": "Get Reminders",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://wanderingmacaque-chatwoot.cloudfy.live/api/v1/accounts/{{ $json.tenant_id }}/conversations/FIXO/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "content", "value": "=LifeFy Cuida de Você: Tá na hora do hábito {{ $json.tipo_habito }}! (Horário: {{ $json.horario }})" },
+            { "name": "message_type", "value": "outgoing" }
+          ]
+        }
+      },
+      "name": "Send Chatwoot Reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [400, 0],
+      "credentials": { "httpHeaderAuth": { "id": "placeholder", "name": "Chatwoot API" } }
+    }
+  ],
+  "connections": {
+    "Trigger Hourly": { "main": [ [ { "node": "Get Reminders", "type": "main", "index": 0 } ] ] },
+    "Get Reminders": { "main": [ [ { "node": "Send Chatwoot Reminders", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}

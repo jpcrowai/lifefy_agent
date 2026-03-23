@@ -1,0 +1,51 @@
+{
+  "name": "Tool - LifeFy Financas",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "finances_transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
+            { "fieldId": "tipo", "fieldValue": "={{ $json.tipo }}" },
+            { "fieldId": "categoria", "fieldValue": "={{ $json.categoria }}" },
+            { "fieldId": "valor", "fieldValue": "={{ $json.valor }}" },
+            { "fieldId": "descricao", "fieldValue": "={{ $json.descricao }}" }
+          ]
+        }
+      },
+      "name": "Insert Finance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "name": "response", "value": "A transação financeira foi registrada no banco de dados com sucesso.", "type": "string" }
+          ]
+        }
+      },
+      "name": "Return Msg",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Finance", "type": "main", "index": 0 } ] ] },
+    "Insert Finance": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {}
+}
