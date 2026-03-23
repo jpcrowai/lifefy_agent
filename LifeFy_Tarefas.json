@@ -10,14 +10,32 @@
     },
     {
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [ { "id": "1", "leftValue": "={{ $json.acao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "inserir" }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
         "operation": "insert",
         "tableId": "tasks",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
-            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
-            { "fieldId": "titulo", "fieldValue": "={{ $json.titulo }}" },
-            { "fieldId": "prioridade", "fieldValue": "={{ $json.prioridade }}" },
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" },
+            { "fieldId": "titulo", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.titulo }}" },
+            { "fieldId": "prioridade", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.prioridade }}" },
             { "fieldId": "status", "fieldValue": "pendente" }
           ]
         }
@@ -25,26 +43,50 @@
       "name": "Insert Task",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [200, 0],
+      "position": [500, 150],
       "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "name": "response", "value": "A tarefa foi gravada e adicionada na sua to-do list.", "type": "string" }
+        "assignments": { "assignments": [ { "name": "response", "value": "A tarefa foi gravada e adicionada na sua to-do list com sucesso.", "type": "string" } ] }
+      },
+      "name": "Return Msg Insert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "tasks",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "keyName": "user_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
           ]
         }
       },
-      "name": "Return Msg",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 0]
+      "name": "Get Tasks",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, -100],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst registros = items.map(i => `Tarefa: ${i.json.titulo} | Status: ${i.json.status} | Prioridade: ${i.json.prioridade}`);\n\nif (registros.length === 0) return [{ json: { response: \"Nenhuma pendência na lista de tarefas.\" } }];\n\nreturn [{ json: { response: \"To-do List:\\n\" + registros.join(\"\\n\") } }];"
+      },
+      "name": "Format Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, -100]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Task", "type": "main", "index": 0 } ] ] },
-    "Insert Task": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Router", "type": "main", "index": 0 } ] ] },
+    "Router": { "main": [ [ { "node": "Get Tasks", "type": "main", "index": 0 } ], [ { "node": "Insert Task", "type": "main", "index": 0 } ] ] },
+    "Insert Task": { "main": [ [ { "node": "Return Msg Insert", "type": "main", "index": 0 } ] ] },
+    "Get Tasks": { "main": [ [ { "node": "Format Array", "type": "main", "index": 0 } ] ] }
   },
   "settings": {}
 }

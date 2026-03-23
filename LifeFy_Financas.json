@@ -10,42 +10,84 @@
     },
     {
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [ { "id": "1", "leftValue": "={{ $json.acao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "inserir" }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
         "operation": "insert",
         "tableId": "finances_transactions",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
-            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
-            { "fieldId": "tipo", "fieldValue": "={{ $json.tipo }}" },
-            { "fieldId": "categoria", "fieldValue": "={{ $json.categoria }}" },
-            { "fieldId": "valor", "fieldValue": "={{ $json.valor }}" },
-            { "fieldId": "descricao", "fieldValue": "={{ $json.descricao }}" }
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" },
+            { "fieldId": "tipo", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tipo }}" },
+            { "fieldId": "categoria", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.categoria }}" },
+            { "fieldId": "valor", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.valor }}" },
+            { "fieldId": "descricao", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.descricao }}" }
           ]
         }
       },
       "name": "Insert Finance",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [200, 0],
+      "position": [500, 150],
       "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "name": "response", "value": "A transação financeira foi registrada no banco de dados com sucesso.", "type": "string" }
+        "assignments": { "assignments": [ { "name": "response", "value": "A transação financeira foi registrada no banco de dados com sucesso.", "type": "string" } ] }
+      },
+      "name": "Return Msg Insert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "finances_transactions",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "keyName": "user_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
           ]
         }
       },
-      "name": "Return Msg",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 0]
+      "name": "Get Finances",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, -100],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst registros = items.map(i => `${i.json.created_at || ''} | ${i.json.tipo} | ${i.json.categoria} | R$${i.json.valor} | ${i.json.descricao}`);\n\nif (registros.length === 0) return [{ json: { response: \"Nenhuma transação encontrada no banco para esse usuário.\" } }];\n\nreturn [{ json: { response: \"Base de transações encontrada:\\n\" + registros.join(\"\\n\") } }];"
+      },
+      "name": "Format Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, -100]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Finance", "type": "main", "index": 0 } ] ] },
-    "Insert Finance": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Router", "type": "main", "index": 0 } ] ] },
+    "Router": { "main": [ [ { "node": "Get Finances", "type": "main", "index": 0 } ], [ { "node": "Insert Finance", "type": "main", "index": 0 } ] ] },
+    "Insert Finance": { "main": [ [ { "node": "Return Msg Insert", "type": "main", "index": 0 } ] ] },
+    "Get Finances": { "main": [ [ { "node": "Format Array", "type": "main", "index": 0 } ] ] }
   },
   "settings": {}
 }

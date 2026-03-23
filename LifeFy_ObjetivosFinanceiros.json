@@ -10,16 +10,34 @@
     },
     {
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [ { "id": "1", "leftValue": "={{ $json.acao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "inserir" }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
         "operation": "insert",
         "tableId": "financial_goals",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
-            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
-            { "fieldId": "nome_objetivo", "fieldValue": "={{ $json.nome_objetivo }}" },
-            { "fieldId": "valor_meta", "fieldValue": "={{ $json.valor_meta }}" },
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" },
+            { "fieldId": "nome_objetivo", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.nome_objetivo }}" },
+            { "fieldId": "valor_meta", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.valor_meta }}" },
             { "fieldId": "valor_atual", "fieldValue": 0 },
-            { "fieldId": "prazo", "fieldValue": "={{ $json.prazo }}" },
+            { "fieldId": "prazo", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.prazo }}" },
             { "fieldId": "status", "fieldValue": "ativo" }
           ]
         }
@@ -27,26 +45,50 @@
       "name": "Insert Goal",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [200, 0],
+      "position": [500, 150],
       "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "name": "response", "value": "O seu objetivo financeiro foi criado para que você possa acompanhar o andamento a partir de agora.", "type": "string" }
+        "assignments": { "assignments": [ { "name": "response", "value": "O seu objetivo financeiro foi criado.", "type": "string" } ] }
+      },
+      "name": "Return Msg Insert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "financial_goals",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "keyName": "user_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
           ]
         }
       },
-      "name": "Return Msg",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 0]
+      "name": "Get Goals",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, -100],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst registros = items.map(i => `Meta: ${i.json.nome_objetivo} | Alvo: R$${i.json.valor_meta} | Atual: R$${i.json.valor_atual} | Prazo: ${i.json.prazo} | Status: ${i.json.status}`);\n\nif (registros.length === 0) return [{ json: { response: \"Nenhum objetivo encontrado.\" } }];\n\nreturn [{ json: { response: \"Base de objetivos encontrada:\\n\" + registros.join(\"\\n\") } }];"
+      },
+      "name": "Format Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, -100]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Goal", "type": "main", "index": 0 } ] ] },
-    "Insert Goal": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Router", "type": "main", "index": 0 } ] ] },
+    "Router": { "main": [ [ { "node": "Get Goals", "type": "main", "index": 0 } ], [ { "node": "Insert Goal", "type": "main", "index": 0 } ] ] },
+    "Insert Goal": { "main": [ [ { "node": "Return Msg Insert", "type": "main", "index": 0 } ] ] },
+    "Get Goals": { "main": [ [ { "node": "Format Array", "type": "main", "index": 0 } ] ] }
   },
   "settings": {}
 }

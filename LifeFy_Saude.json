@@ -10,41 +10,83 @@
     },
     {
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [ { "id": "1", "leftValue": "={{ $json.acao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "inserir" }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
         "operation": "insert",
         "tableId": "health_habits",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
-            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
-            { "fieldId": "tipo_habito", "fieldValue": "={{ $json.tipo_habito }}" },
-            { "fieldId": "valor", "fieldValue": "={{ $json.valor }}" },
-            { "fieldId": "unidade", "fieldValue": "={{ $json.unidade }}" }
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" },
+            { "fieldId": "tipo_habito", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tipo_habito }}" },
+            { "fieldId": "valor", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.valor }}" },
+            { "fieldId": "unidade", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.unidade }}" }
           ]
         }
       },
       "name": "Insert Habit",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [200, 0],
+      "position": [500, 150],
       "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "name": "response", "value": "A métrica de saúde foi computada no banco com sucesso.", "type": "string" }
+        "assignments": { "assignments": [ { "name": "response", "value": "A métrica de saúde foi registrada no banco de dados.", "type": "string" } ] }
+      },
+      "name": "Return Msg Insert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "health_habits",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "keyName": "user_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
           ]
         }
       },
-      "name": "Return Msg",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 0]
+      "name": "Get Habits",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, -100],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst registros = items.map(i => `${i.json.created_at || ''} | Hábito: ${i.json.tipo_habito} | Quantidade: ${i.json.valor} ${i.json.unidade || ''}`);\n\nif (registros.length === 0) return [{ json: { response: \"Nenhum registro de saúde encontrado no banco.\" } }];\n\nreturn [{ json: { response: \"Histórico de saúde:\\n\" + registros.join(\"\\n\") } }];"
+      },
+      "name": "Format Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, -100]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Habit", "type": "main", "index": 0 } ] ] },
-    "Insert Habit": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Router", "type": "main", "index": 0 } ] ] },
+    "Router": { "main": [ [ { "node": "Get Habits", "type": "main", "index": 0 } ], [ { "node": "Insert Habit", "type": "main", "index": 0 } ] ] },
+    "Insert Habit": { "main": [ [ { "node": "Return Msg Insert", "type": "main", "index": 0 } ] ] },
+    "Get Habits": { "main": [ [ { "node": "Format Array", "type": "main", "index": 0 } ] ] }
   },
   "settings": {}
 }

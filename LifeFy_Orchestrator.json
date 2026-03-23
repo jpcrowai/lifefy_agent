@@ -33,7 +33,7 @@
         "promptType": "define",
         "text": "={{ $json.msg }}",
         "options": {
-          "systemMessage": "=## IDENTIDADE: Você é o LifeFy, assistente pessoal do usuário no WhatsApp. Linguagem direta, natural, otimista, sem emojis.\n\nVocê organiza: Finanças, Compromissos, Saúde, Tarefas e Metas.\nNão use markdowns ou textos longos demais.\nSempre confirme ações importantes utilizando os Tools."
+          "systemMessage": "=## IDENTIDADE: Você é o LifeFy, assistente pessoal do usuário no WhatsApp. Linguagem direta, natural, otimista.\n\nVocê gerencia 5 áreas essenciais: Finanças, Compromissos, Saúde, Tarefas e Metas (Objetivos).\nTodas as Tools suportam 'acao' = 'consultar' e 'inserir'.\nSe o usuário fizer uma pergunta (Ex: 'quanto falta pro carro?', 'fui quantas vezes na academia?', 'tenho reuniao hoje?'), acione a Tool respectiva com acao = consultar. Eu te retornarei os dados e você fará a matemática, o resumo e a previsão baseada nos prazos. Entregue um texto agradável em WhatsApp!\nSe ele der uma nova ordem (ex: 'comprei pao', 'quero marcar uma viagem', 'anota que bebi agua'), use acao = inserir."
         }
       },
       "name": "LifeFy Agent",
@@ -42,9 +42,7 @@
       "position": [450, 0]
     },
     {
-      "parameters": {
-        "model": "gpt-4o-mini"
-      },
+      "parameters": { "model": "gpt-4o-mini" },
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
@@ -64,17 +62,18 @@
     {
       "parameters": {
         "name": "LifeFy_Financas",
-        "description": "Acione quando a mensagem for sobre dinheiro, gastos, pagamentos, salário ou saldo.",
+        "description": "Consultar ou Inserir gastos, balanços mensais, relatórios bancários.",
         "workflowId": "ID_TOOL_FINANCAS",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
             "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "acao": "={{ $fromAI('acao', '\"inserir\" ou \"consultar\"', 'string') }}",
             "tipo": "={{ $fromAI('tipo', 'Despesa ou Receita', 'string') }}",
-            "categoria": "={{ $fromAI('categoria', 'Alimentacao, Moradia, etc', 'string') }}",
+            "categoria": "={{ $fromAI('categoria', 'Alimentacao, etc', 'string') }}",
             "valor": "={{ $fromAI('valor', 'Apenas numero', 'number') }}",
-            "descricao": "={{ $fromAI('descricao', 'O que foi gasto', 'string') }}"
+            "descricao": "={{ $fromAI('descricao', '', 'string') }}"
           }
         }
       },
@@ -85,14 +84,37 @@
     },
     {
       "parameters": {
+        "name": "LifeFy_Saude",
+        "description": "Consultar ou Inserir treinos, alimentação, água.",
+        "workflowId": "ID_TOOL_SAUDE",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
+            "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "acao": "={{ $fromAI('acao', '\"inserir\" ou \"consultar\"', 'string') }}",
+            "tipo_habito": "={{ $fromAI('tipo_habito', 'Agua, Academia, etc', 'string') }}",
+            "valor": "={{ $fromAI('valor', 'Numero', 'string') }}",
+            "unidade": "={{ $fromAI('unidade', 'litros, vez, hs', 'string') }}"
+          }
+        }
+      },
+      "name": "Tool Saude",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
         "name": "LifeFy_Compromissos",
-        "description": "Acione quando for marcar reuniões, consultas, treinos ou datas futuras.",
+        "description": "Consultar ou Inserir eventos, reuniões, aniversários de hoje, da semana.",
         "workflowId": "ID_TOOL_COMPROMISSOS",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
             "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "acao": "={{ $fromAI('acao', '\"inserir\" ou \"consultar\"', 'string') }}",
             "titulo": "={{ $fromAI('titulo', 'Resumo', 'string') }}",
             "data_hora": "={{ $fromAI('data_hora', 'Data e hora padrao', 'string') }}",
             "descricao": "={{ $fromAI('descricao', 'Detalhes do evento', 'string') }}"
@@ -106,35 +128,15 @@
     },
     {
       "parameters": {
-        "name": "LifeFy_Saude",
-        "description": "Acione quando gravar rotinas de agua, peso, academia, sono.",
-        "workflowId": "ID_TOOL_SAUDE",
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
-            "user_id": "={{ $('Set Context').item.json.user_id }}",
-            "tipo_habito": "={{ $fromAI('tipo_habito', 'Agua, Sono, etc', 'string') }}",
-            "valor": "={{ $fromAI('valor', 'Numero', 'string') }}",
-            "unidade": "={{ $fromAI('unidade', 'litros, kg, horas', 'string') }}"
-          }
-        }
-      },
-      "name": "Tool Saude",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2,
-      "position": [850, 200]
-    },
-    {
-      "parameters": {
         "name": "LifeFy_Tarefas",
-        "description": "Acione quando criar tarefas e afazeres sem horario rigido.",
+        "description": "Consultar pendências ou Inserir nova tarefa to-do.",
         "workflowId": "ID_TOOL_TAREFAS",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
             "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "acao": "={{ $fromAI('acao', '\"inserir\" ou \"consultar\"', 'string') }}",
             "titulo": "={{ $fromAI('titulo', 'Titulo da tarefa', 'string') }}",
             "prioridade": "={{ $fromAI('prioridade', 'Alta, Media, Baixa', 'string') }}"
           }
@@ -148,16 +150,17 @@
     {
       "parameters": {
         "name": "LifeFy_Objetivos",
-        "description": "Acione quando criar metas de viagem, poupança de longo prazo.",
+        "description": "Consultar ou Inserir metas financeiras (ex: Comprar carro). Pode retornar prazo.",
         "workflowId": "ID_TOOL_OBJETIVOS",
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "tenant_id": "={{ $('Set Context').item.json.tenant_id }}",
             "user_id": "={{ $('Set Context').item.json.user_id }}",
+            "acao": "={{ $fromAI('acao', '\"inserir\" ou \"consultar\"', 'string') }}",
             "nome_objetivo": "={{ $fromAI('nome_objetivo', 'Nome', 'string') }}",
-            "valor_meta": "={{ $fromAI('valor_meta', 'Alvo', 'number') }}",
-            "prazo": "={{ $fromAI('prazo', 'Data prevista', 'string') }}"
+            "valor_meta": "={{ $fromAI('valor_meta', 'Alvo em BRL', 'number') }}",
+            "prazo": "={{ $fromAI('prazo', 'Data prevista ISO', 'string') }}"
           }
         }
       },

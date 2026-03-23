@@ -10,42 +10,84 @@
     },
     {
       "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 }, "conditions": [ { "id": "1", "leftValue": "={{ $json.acao }}", "rightValue": "consultar", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "inserir" }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
         "operation": "insert",
         "tableId": "life_appointments",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "tenant_id", "fieldValue": "={{ $json.tenant_id }}" },
-            { "fieldId": "user_id", "fieldValue": "={{ $json.user_id }}" },
-            { "fieldId": "titulo", "fieldValue": "={{ $json.titulo }}" },
-            { "fieldId": "data_hora", "fieldValue": "={{ $json.data_hora }}" },
-            { "fieldId": "descricao", "fieldValue": "={{ $json.descricao }}" },
-            { "fieldId": "status", "fieldValue": "agendado" }
+            { "fieldId": "tenant_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "fieldId": "user_id", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" },
+            { "fieldId": "titulo", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.titulo }}" },
+            { "fieldId": "descricao", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.descricao }}" },
+            { "fieldId": "data_hora", "fieldValue": "={{ $('Execute Workflow Trigger').item.json.data_hora }}" },
+            { "fieldId": "status", "fieldValue": "pendente" }
           ]
         }
       },
-      "name": "Insert Appointment",
+      "name": "Insert Appt",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [200, 0],
+      "position": [500, 150],
       "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "name": "response", "value": "O compromisso foi salvo e será lembrado via CRON.", "type": "string" }
+        "assignments": { "assignments": [ { "name": "response", "value": "O compromisso foi criado na sua agenda com sucesso.", "type": "string" } ] }
+      },
+      "name": "Return Msg Insert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "life_appointments",
+        "filters": {
+          "conditions": [
+            { "keyName": "tenant_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.tenant_id }}" },
+            { "keyName": "user_id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
           ]
         }
       },
-      "name": "Return Msg",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [400, 0]
+      "name": "Get Appts",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, -100],
+      "credentials": { "supabaseApi": { "id": "placeholder", "name": "Supabase" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst registros = items.map(i => `Evento: ${i.json.titulo} | Data/Hora: ${i.json.data_hora} | Info: ${i.json.descricao || ''}`);\n\nif (registros.length === 0) return [{ json: { response: \"Nenhum evento na agenda.\" } }];\n\nreturn [{ json: { response: \"Agenda encontrada:\\n\" + registros.join(\"\\n\") } }];"
+      },
+      "name": "Format Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, -100]
     }
   ],
   "connections": {
-    "Execute Workflow Trigger": { "main": [ [ { "node": "Insert Appointment", "type": "main", "index": 0 } ] ] },
-    "Insert Appointment": { "main": [ [ { "node": "Return Msg", "type": "main", "index": 0 } ] ] }
+    "Execute Workflow Trigger": { "main": [ [ { "node": "Router", "type": "main", "index": 0 } ] ] },
+    "Router": { "main": [ [ { "node": "Get Appts", "type": "main", "index": 0 } ], [ { "node": "Insert Appt", "type": "main", "index": 0 } ] ] },
+    "Insert Appt": { "main": [ [ { "node": "Return Msg Insert", "type": "main", "index": 0 } ] ] },
+    "Get Appts": { "main": [ [ { "node": "Format Array", "type": "main", "index": 0 } ] ] }
   },
   "settings": {}
 }
